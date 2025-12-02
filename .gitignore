@@ -1,0 +1,2 @@
+# 忽略 B 目录下的 .env 文件
+python/.env
