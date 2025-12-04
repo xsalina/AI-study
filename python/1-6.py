@@ -1,6 +1,8 @@
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
+from openai import RateLimitError, APIError, OpenAIError
+
 
 
 # **Day 6 — 完成 CLI ChatGPT 应用**
@@ -33,11 +35,14 @@ messages = []
 
 
 def loopGpt(value):
+    conversation_text = ""
+    for msg in messages:
+        conversation_text += f"{msg['role']}: {msg['content']}\n"
+    conversation_text += f"user: {value}\n"
     try:
         stream = client.responses.create(
             model = "gpt-3.5-turbo",
-            input = value,
-            messages = messages,
+            input = conversation_text,
             stream = True
         )
         # 因为是stream为true是事件流，所以返回的需要for循环 每个event对象的值如下
@@ -52,8 +57,10 @@ def loopGpt(value):
         #     }
         # }
         for event in stream:
-            for ch in event.data.delta:
-                print(ch,end='',flush=True)
+            # 逐字打印 chunk
+            if event.type == "response.output_text.delta":
+                for ch in event.delta:
+                    print(ch, end='', flush=True)
                 # end:
                 #     作用：控制 print() 打印完成后在结尾加什么
                 #     默认值：\n（换行）
@@ -64,12 +71,21 @@ def loopGpt(value):
                 print()  # 换行
                 messages.append({"role":'assistant',"content":event.response.output_text})
 
-    except Exception as e:
-        # 如果想特别处理额度不足，可以检查字符串
-        if "insufficient_quota" in str(e):
+    # 捕获配额超限
+    except RateLimitError:
+        print("⚠️ 当前账户额度不足，请充值或等待额度刷新")
+    # 捕获其他 API 错误
+    except APIError as e:
+        print(f"⚠️ API 调用出错: {e}")
+    # 捕获其他未知错误
+    except OpenAIError as e:
+        if "quota" in str(e).lower():
             print("⚠️ 当前账户额度不足，请充值或等待额度刷新")
-        else:   
-            print(f"调用出错: {e}")
+        else:
+            print(f"⚠️ API 调用出错: {e}")
+    except Exception as e:
+        print(f"⚠️ 未知错误: {e}")
+
 
 
 
