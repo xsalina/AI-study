@@ -8,14 +8,17 @@
 
 
 
-❌ 坏 Prompt 3：【过早优化型】
+# ❌ 坏 Prompt 3：【过早优化型】
 
-map_template_3 = """
-阅读文本："{text}"
+# map_template_3 = """
+# 阅读文本："{text}"
 
-请直接输出一个标准的 JSON 对象，包含 keys: product, price, date。
-不要输出任何其他文字。
-"""
+# 请直接输出一个标准的 JSON 对象，包含 keys: product, price, date。
+# 不要输出任何其他文字。
+# """
+
+# 为什么叫过早，因为可能是文案太长了，可能需要先切割分段再喂给AI，
+# 她直接让它输出一个标准的JSON对象，会导致文案没读完，生成的JSON独享不完整
 
 
 
