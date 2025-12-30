@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import './App.css'
+import remarkGfm from 'remark-gfm' // New: 导入 GFM 插件
+import CodeBlock from './components/CodeBlock' // New: 导入刚才写的组件
 
 function App() {
   const [input, setInput] = useState("")
@@ -20,6 +21,7 @@ function App() {
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({query:input,session_id:'user1'})
       })
+      console.log(34578345,response)
       if(!response.body) return new Error('不支持流式传输')
       const reader = response.body.getReader();
       const decoder = new TextDecoder()
@@ -46,7 +48,7 @@ function App() {
 
   return (
     <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>🤖 React + FastAPI 流式 AI</h1>
+      <h1>🤖 React + FastAPI + SyntaxHighlighter</h1>
       
       {/* 答案显示区 */}
       <div style={{ 
@@ -57,10 +59,21 @@ function App() {
         borderRadius: '8px',
         marginBottom: '20px',
         background: '#f9f9f9',
-        color:'red'
+        color:'red',
+        // 这一行是为了防止表格溢出
+        overflowX: 'auto'
       }}>
-        {/* 使用 Markdown 组件渲染 */}
-        {answer ? <ReactMarkdown>{answer}</ReactMarkdown> : <span style={{color:'#ccc'}}>AI 正在待命...</span>}
+        {/* --- 核心修改在这里 --- */}
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]} // 1. 开启表格支持
+          components={{
+            // 2. 拦截 `code` 标签，用我们的 CodeBlock 组件替换它
+            code: CodeBlock 
+          }}
+        >
+          {answer}
+        </ReactMarkdown>
+        {/* --------------------- */}
       </div>
 
       {/* 输入框区域 */}
