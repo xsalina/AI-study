@@ -25,18 +25,25 @@ function App() {
       if(!response.body) return new Error('不支持流式传输')
       const reader = response.body.getReader();
       const decoder = new TextDecoder()
-      while(true){
-        // value 是二进制数据，done 标记是否结束
-        const {done,value} = await reader.read()
-        if(done) break;// 水流完了，收工
-        // 解码：二进制 -> 文本 ("特", "斯", "拉")
-        const textChunk = decoder.decode(value,{stream:true})
-        // 累加答案
-        setAnswer((prev) => prev + textChunk)
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+            // 🛑 【新增】循环结束时，看看解码器里有没有剩下的渣渣
+            // 不加 {stream: true} 表示这是最后一次，强制清空缓存
+            const lastChunk = decoder.decode(); 
+            if (lastChunk) {
+                setAnswer(prev => prev + lastChunk);
+            }
+            break; 
+        }
 
-
+        const textChunk = decoder.decode(value, { stream: true });
+        // 🐞 【调试】把这行加上，看看控制台打印了什么！
+        console.log("收到的碎片:", textChunk); 
+        
+        setAnswer(prev => prev + textChunk);
       }
-
 
 
     } catch (error) {
@@ -45,6 +52,23 @@ function App() {
       setIsLoading(false)
     }
   }
+const formatMarkdown = (content) => {
+  if (content === null || content === undefined) return '';
+  
+  // 核心：哪怕进来的 content 是字符串，我们也防一手
+  let text = content;
+  
+  // 如果是数组，强行拼成字符串
+  if (Array.isArray(content)) {
+    text = content.join('');
+  } else if (typeof content !== 'string') {
+    // 如果是数字或对象，转字符串
+    text = String(content);
+  }
+
+  // 此时 text 100% 是字符串，再做正则替换
+  return text.replace(/\n-/g, '\n\n-').replace(/\n(\d+)\./g, '\n\n$1.');
+};
 
   return (
     <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>
@@ -64,14 +88,11 @@ function App() {
         overflowX: 'auto'
       }}>
         {/* --- 核心修改在这里 --- */}
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]} // 1. 开启表格支持
-          components={{
-            // 2. 拦截 `code` 标签，用我们的 CodeBlock 组件替换它
-            code: CodeBlock 
-          }}
+        <ReactMarkdown 
+            remarkPlugins={[remarkGfm]} 
+            // ...其他配置
         >
-          {answer}
+            {answer} 
         </ReactMarkdown>
         {/* --------------------- */}
       </div>
