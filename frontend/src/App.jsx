@@ -7,7 +7,7 @@ function App() {
   const [input, setInput] = useState("")
   const [answer, setAnswer] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-
+  const API_BASE_URL = import.meta.env.VITE_API_URL|| 'http://localhost:8000'
   const sendQuestion = async () => {
     if(!input.trim()) return;
     //清空上一轮
@@ -16,7 +16,7 @@ function App() {
     try {
       // 2. 发起 Fetch 请求
       // 注意：这里必须是 POST，且要带上 Content-Type
-      const response = await fetch('http://localhost:8000/chat/stream',{
+      const response = await fetch(`${API_BASE_URL}/chat/stream`,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({query:input,session_id:'user1'})
