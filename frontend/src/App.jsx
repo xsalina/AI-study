@@ -1,118 +1,300 @@
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm' // New: 导入 GFM 插件
-import CodeBlock from './components/CodeBlock' // New: 导入刚才写的组件
+import remarkGfm from 'remark-gfm'
+import CodeBlock from './components/CodeBlock'
+
+// --- 🎨 定义专业风格常量 ---
+const styles = {
+  container: {
+    minHeight: '100vh',
+    backgroundColor: '#f4f6f9', // 更现代的浅灰背景
+    padding: '40px 20px',
+    display: 'flex',
+    justifyContent: 'center',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+  },
+  card: {
+    width: '100%',
+    maxWidth: '900px', // 加宽一点，更大气
+    backgroundColor: '#ffffff',
+    borderRadius: '16px', // 更大的圆角
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)', // 微妙的高级阴影
+    padding: '35px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '25px',
+  },
+  header: {
+    textAlign: 'center',
+    marginBottom: '10px',
+  },
+  title: {
+    fontSize: '1.8rem',
+    fontWeight: '700',
+    color: '#1a1a1a',
+    margin: '0 0 10px 0',
+  },
+  subtitle: {
+    color: '#666',
+    fontSize: '0.95rem',
+  },
+  uploadSection: {
+    paddingBottom: '20px',
+    borderBottom: '1px solid #eaeaea', // 用细线分隔，代替粗糙的背景框
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '15px'
+  },
+  uploadLabel: {
+    fontSize: '1.1rem',
+    fontWeight: '600',
+    color: '#333',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  fileInputWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '15px',
+    backgroundColor: '#f9fafb',
+    padding: '8px 15px',
+    borderRadius: '8px',
+    border: '1px solid #e5e7eb'
+  },
+  button: {
+    padding: '10px 24px',
+    border: 'none',
+    borderRadius: '8px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    fontSize: '0.95rem',
+    boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+  },
+  primaryButton: {
+    backgroundColor: '#0066FF', // 专业科技蓝
+    color: 'white',
+  },
+  successButton: {
+    backgroundColor: '#10B981', // 现代绿
+    color: 'white',
+  },
+  disabledButton: {
+    backgroundColor: '#e5e7eb',
+    color: '#9ca3af',
+    cursor: 'not-allowed',
+    boxShadow: 'none'
+  },
+  chatWindow: {
+    flexGrow: 1,
+    minHeight: '400px', // 增加高度
+    backgroundColor: '#fcfcfd', // 极淡的背景色区分
+    border: '1px solid #edeff2',
+    borderRadius: '12px',
+    padding: '30px',
+    overflowY: 'auto',
+    position: 'relative',
+  },
+  emptyState: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    color: '#aaa',
+    textAlign: 'center',
+    pointerEvents: 'none',
+  },
+  inputArea: {
+    display: 'flex',
+    gap: '15px',
+    marginTop: 'auto', // 将输入框推到底部
+    paddingTop: '20px',
+    borderTop: '1px solid #eaeaea'
+  },
+  inputField: {
+    flex: 1,
+    padding: '14px 20px',
+    fontSize: '1rem',
+    border: '1px solid #e5e7eb',
+    borderRadius: '10px',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    boxShadow: '0 2px 5px rgba(0,0,0,0.03) inset'
+  },
+};
+
 
 function App() {
   const [input, setInput] = useState("")
   const [answer, setAnswer] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const API_BASE_URL = import.meta.env.VITE_API_URL|| 'http://localhost:8000'
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [isUploading, setIsUploading] = useState(false)
+
+  // 这里的 session_id 必须和下面聊天时的一致，才能查到数据
+  const SESSION_ID = 'user1'
+
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+  const handleFileChange = (e) => {
+    setSelectedFile(e.target.files[0])
+  }
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert("请先选择一个 PDF 文件！")
+      return
+    }
+    setIsUploading(true)
+
+    const formData = new FormData()
+    formData.append("file", selectedFile)
+    formData.append("session_id", SESSION_ID)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/upload`, {
+        method: "POST",
+        body: formData,
+      })
+      if (response.ok) {
+        alert("✅ 上传成功！知识库已更新。")
+        setSelectedFile(null)
+        // 重置 file input
+        document.getElementById('fileInput').value = '';
+      } else {
+        alert("❌ 上传失败")
+      }
+    } catch (error) {
+      console.error("上传错误:", error)
+      alert("网络错误")
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   const sendQuestion = async () => {
-    if(!input.trim()) return;
-    //清空上一轮
+    if (!input.trim()) return;
     setAnswer("")
     setIsLoading(true)
     try {
-      // 2. 发起 Fetch 请求
-      // 注意：这里必须是 POST，且要带上 Content-Type
-      const response = await fetch(`${API_BASE_URL}/chat/stream`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({query:input,session_id:'user1'})
+      const response = await fetch(`${API_BASE_URL}/chat/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: input, session_id: SESSION_ID })
       })
-      console.log(34578345,response)
-      if(!response.body) return new Error('不支持流式传输')
+
+      if (!response.body) return new Error('不支持流式传输')
       const reader = response.body.getReader();
       const decoder = new TextDecoder()
       while (true) {
         const { done, value } = await reader.read();
-        
         if (done) {
-            // 🛑 【新增】循环结束时，看看解码器里有没有剩下的渣渣
-            // 不加 {stream: true} 表示这是最后一次，强制清空缓存
-            const lastChunk = decoder.decode(); 
-            if (lastChunk) {
-                setAnswer(prev => prev + lastChunk);
-            }
-            break; 
+          const lastChunk = decoder.decode();
+          if (lastChunk) {
+            setAnswer(prev => prev + lastChunk);
+          }
+          break;
         }
-
         const textChunk = decoder.decode(value, { stream: true });
-        // 🐞 【调试】把这行加上，看看控制台打印了什么！
-        console.log("收到的碎片:", textChunk); 
-        
         setAnswer(prev => prev + textChunk);
       }
-
-
     } catch (error) {
-      console.error("请求出错:",error)
-    }finally{
+      console.error("请求出错:", error)
+    } finally {
       setIsLoading(false)
     }
   }
-const formatMarkdown = (content) => {
-  if (content === null || content === undefined) return '';
-  
-  // 核心：哪怕进来的 content 是字符串，我们也防一手
-  let text = content;
-  
-  // 如果是数组，强行拼成字符串
-  if (Array.isArray(content)) {
-    text = content.join('');
-  } else if (typeof content !== 'string') {
-    // 如果是数字或对象，转字符串
-    text = String(content);
-  }
-
-  // 此时 text 100% 是字符串，再做正则替换
-  return text.replace(/\n-/g, '\n\n-').replace(/\n(\d+)\./g, '\n\n$1.');
-};
 
   return (
-    <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>🤖 React + FastAPI + SyntaxHighlighter</h1>
-      
-      {/* 答案显示区 */}
-      <div style={{ 
-        textAlign: 'left', 
-        minHeight: '200px', 
-        padding: '20px', 
-        border: '1px solid #ddd', 
-        borderRadius: '8px',
-        marginBottom: '20px',
-        background: '#f9f9f9',
-        color:'red',
-        // 这一行是为了防止表格溢出
-        overflowX: 'auto'
-      }}>
-        {/* --- 核心修改在这里 --- */}
-        <ReactMarkdown 
-            remarkPlugins={[remarkGfm]} 
-            // ...其他配置
-        >
-            {answer} 
-        </ReactMarkdown>
-        {/* --------------------- */}
-      </div>
+    <div style={styles.container}>
+        {/* 添加一个全局样式来优化 Markdown 的显示效果 */}
+        <style>{`
+            .markdown-body { line-height: 1.7; color: #333; }
+            .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin-top: 1.5em; margin-bottom: 0.8em; color: #111; }
+            .markdown-body p { margin-bottom: 1.2em; }
+            .markdown-body ul, .markdown-body ol { padding-left: 1.5em; margin-bottom: 1.2em; }
+            .markdown-body li { margin-bottom: 0.5em; }
+            .markdown-body strong { color: #000; font-weight: 600; }
+        `}</style>
 
-      {/* 输入框区域 */}
-      <div style={{ display: 'flex', gap: '10px' }}>
-        <input 
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendQuestion()}
-          placeholder="问点什么，比如：特斯拉毛利率是多少？"
-          style={{ flex: 1, padding: '10px', fontSize: '16px' }}
-        />
-        <button 
-          onClick={sendQuestion} 
-          disabled={isLoading}
-          style={{ padding: '10px 20px', cursor: 'pointer' }}
-        >
-          {isLoading ? "思考中..." : "发送"}
-        </button>
+      <div style={styles.card}>
+        {/* Header */}
+        <div style={styles.header}>
+          <h1 style={styles.title}>✨ AI 智能知识库</h1>
+          <p style={styles.subtitle}>基于您的私有文档，进行精准问答</p>
+        </div>
+
+        {/* 上传区域 - 简化设计 */}
+        <div style={styles.uploadSection}>
+          <div style={styles.uploadLabel}>
+            <span style={{fontSize: '1.3rem'}}>📚</span>
+            <span>文档管理</span>
+          </div>
+          <div style={styles.fileInputWrapper}>
+            <input
+              id="fileInput"
+              type="file"
+              accept=".pdf"
+              onChange={handleFileChange}
+              style={{ fontSize: '0.9rem', color: '#555' }}
+            />
+            <button
+              onClick={handleUpload}
+              disabled={isUploading || !selectedFile}
+              style={{
+                ...styles.button,
+                ...(isUploading || !selectedFile ? styles.disabledButton : styles.successButton)
+              }}
+            >
+              {isUploading ? "⏳ 上传中..." : "🚀 上传至云端"}
+            </button>
+          </div>
+        </div>
+
+        {/* 答案显示区 - 增加高度和留白 */}
+        <div style={styles.chatWindow} className="markdown-body">
+          {!answer && !isLoading && (
+            <div style={styles.emptyState}>
+              <p style={{fontSize: '3rem', margin: 0}}>🤖</p>
+              <p>请在下方输入问题，开始对话</p>
+            </div>
+          )}
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              code: CodeBlock
+            }}
+          >
+            {answer}
+          </ReactMarkdown>
+        </div>
+
+        {/* 输入框区域 - 更现代的样式 */}
+        <div style={styles.inputArea}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && sendQuestion()}
+            placeholder="💡 请输入您的问题，例如：这份文档的核心观点是什么？"
+            style={styles.inputField}
+            onFocus={(e) => e.target.style.borderColor = '#0066FF'}
+            onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+          />
+          <button
+            onClick={sendQuestion}
+            disabled={isLoading || !input.trim()}
+            style={{
+              ...styles.button,
+              ...(isLoading || !input.trim() ? styles.disabledButton : styles.primaryButton),
+               padding: '10px 30px' // 发送按钮稍微宽一点
+            }}
+          >
+            {isLoading ? "🤔 思考中..." : "发送"}
+          </button>
+        </div>
       </div>
     </div>
   )
